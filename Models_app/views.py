@@ -21,8 +21,11 @@ def watching_photos(request):
 
 
 def predict(request):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = UNET()
-    model.load_state_dict(torch.load('unet_tumor_08'))
+    model.load_state_dict(torch.load('unet_tumor_08', map_location=device))
+    model.eval()
+    model.to(device)
     _, transform_val = augmentation()
     image_path = 'your_image.jpg'
     image = Image.open(image_path).convert("RGB")
