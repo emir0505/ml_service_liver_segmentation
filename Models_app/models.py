@@ -211,3 +211,17 @@ def augmentation(mean, std):
         A.Resize(height=256, width=256),
     ])
     return transform_train, transform_val
+
+# нужна модель для сохранения фотографий из этого
+# cnt = 0
+# for x,y in df_train:
+#     cnt += 1
+#     if cnt < 50:
+#         continue
+#     plt.imshow(x.squeeze(0), cmap='Greys')
+#     plt.show()
+#     plt.imshow(y.squeeze(0), cmap='Greys')
+# сохраняем в статикфайлс, в папку reading_images, во вьюхе вызову все объекты модели, и отдам в контекст
+# разумеется, чтобы бд не была перегружена, нужно при каждом заходе их удалять
+
+
