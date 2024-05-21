@@ -1,45 +1,44 @@
+from PIL import Image
+import numpy as np
 import torch
-from django.shortcuts import render, redirect
-from matplotlib import pyplot as plt
-
-from Models_app.models import augmentation, LiverDataset
-
-
-def main_page():
-    # Здесь тупо что-то вроде описания работы, а также переход на загрузку картинок, download_dataset
-    pass
+from PIL.Image import Image
+from django.shortcuts import redirect, render
+from Models_app.models import augmentation, UNET
 
 
-def download_dataset():
-    # Здесь, просто грузим на сервер выбранные файлы, с редиректом на страничку со чтением, также надо бы сделать полосу загрузки
-    pass
+def main_page(request):
+    return render(request, 'mainpage.html')
 
 
-def watching_photos(df_train):
-    # получаем все фото после чтения из модели
-    # и выводим
-    # в шаблоне этого урла, надо кнопку с выбором модели, а также запуск обучения
-    # return render('watching.html', context=...)
-    pass
+def download_image(request):
+    return render(request, '')
 
 
-def reading_dataset():
-    # Считываем датасет, также надо какой-то traceback, что-то по типу как было в коллабе или в кегле
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    mean = -644.2137072615333
-    std = 673.311976351113
-    tr_tr, tr_val = augmentation(mean, std)
-    cnt = 3
-    df_train = LiverDataset(tr_tr, cnt)
-    df_test = LiverDataset(tr_val, cnt)
-    return redirect('watching_photos')  # надо как-то передать туда df_train
+def watching_photos(request):
+    image_path = '' # куда загрузили
+    image = Image.open(image_path).convert("RGB")
+    return render(request, 'watching.html', context={'images': image})
 
 
-def train():
-    # тренируем выбранную модель. Затем редирект на страницу результатов
-    pass
+def predict(request):
+    model = UNET()
+    model.load_state_dict(torch.load('unet_tumor_08'))
+    _, transform_val = augmentation()
+    image_path = 'your_image.jpg'
+    image = Image.open(image_path).convert("RGB")
+    image_np = np.array(image)
+    transformed = transform_val(image=image_np)
+    image_tensor = transformed['image']
+    image_tensor = image_tensor.unsqueeze(0)
+    with torch.no_grad():
+        output = model(image_tensor)
+
+    output_image = output.squeeze(0).permute(1, 2, 0).cpu().numpy()
+    output_image_pil = Image.fromarray(output_image)
+    output_image_pil.save('staticfiles/outputs/pred.png')
+    return redirect('results')
 
 
-def results():
+def results(request):
     # показываем графики метрик, индекс жакара, можно также картинки(ориг изображение, метку и предикт)
     pass

@@ -124,91 +124,99 @@ class LiverDataset:
         return np.array(features), np.array(targets)
 
 
-class CNA(nn.Module):
-    def __init__(self, in_nc, out_nc, stride=1):
-        super().__init__()
+def conv_plus_conv(in_channels: int, out_channels: int):
+    return nn.Sequential(
+        nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1
+        ),
 
-        self.conv = nn.Conv2d(in_nc, out_nc, 3, stride=stride, padding=1, bias=False)
-        self.norm = nn.BatchNorm2d(out_nc)
-        self.act = nn.GELU()
-
-    def forward(self, x):
-        out = self.conv(x)
-        out = self.norm(out)
-        out = self.act(out)
-
-        return out
-
-
-class UnetBlock(nn.Module):
-    def __init__(self, in_nc, inner_nc, out_nc, inner_block=None):
-        super().__init__()
-
-        self.conv1 = CNA(in_nc, inner_nc, stride=2)
-        self.conv2 = CNA(inner_nc, inner_nc)
-        self.inner_block = inner_block
-        self.conv3 = CNA(inner_nc, inner_nc)
-        self.conv_cat = nn.Conv2d(inner_nc + in_nc, out_nc, 3, padding=1)
-
-    def forward(self, x):
-        _, _, h, w = x.shape
-
-        inner = self.conv1(x)
-        inner = self.conv2(inner)
-        # print(inner.shape)
-        if self.inner_block is not None:
-            inner = self.inner_block(inner)
-        inner = self.conv3(inner)
-
-        inner = F.interpolate(inner, size=(h, w), mode='bilinear')
-        inner = torch.cat((x, inner), axis=1)
-        out = self.conv_cat(inner)
-
-        return out
+        nn.BatchNorm2d(num_features=out_channels),
+        nn.LeakyReLU(0.2),
+        nn.Conv2d(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1
+        ),
+        nn.BatchNorm2d(num_features=out_channels),
+        nn.LeakyReLU(0.2),
+    )
 
 
 class UNET(nn.Module):
-    def __init__(self, in_nc=1, nc=32, out_nc=3, num_downs=6):
+    def __init__(self):
         super().__init__()
 
-        self.cna1 = CNA(in_nc, nc)
-        self.cna2 = CNA(nc, nc)
+        base_channels = 32
 
-        unet_block = None
-        for i in range(num_downs - 3):
-            unet_block = UnetBlock(8 * nc, 8 * nc, 8 * nc, unet_block)
-        unet_block = UnetBlock(4 * nc, 8 * nc, 4 * nc, unet_block)
-        unet_block = UnetBlock(2 * nc, 4 * nc, 2 * nc, unet_block)
-        self.unet_block = UnetBlock(nc, 2 * nc, nc, unet_block)
+        self.down1 = conv_plus_conv(1, base_channels)
+        self.down2 = conv_plus_conv(base_channels, base_channels * 2)
+        self.down3 = conv_plus_conv(base_channels * 2, base_channels * 4)
+        self.down4 = conv_plus_conv(base_channels * 4, base_channels * 8)
 
-        self.cna3 = CNA(nc, nc)
+        self.up1 = conv_plus_conv(base_channels * 2, base_channels)
+        self.up2 = conv_plus_conv(base_channels * 4, base_channels)
+        self.up3 = conv_plus_conv(base_channels * 8, base_channels * 2)
+        self.up4 = conv_plus_conv(base_channels * 16, base_channels * 4)
 
-        self.conv_last = nn.Conv2d(nc, out_nc, 3, padding=1)
+        self.bottleneck = conv_plus_conv(base_channels * 8, base_channels * 8)
+
+        self.out = nn.Conv2d(in_channels=base_channels, out_channels=3, kernel_size=1)
+
+        self.downsample = nn.MaxPool2d(kernel_size=2, stride=2)
 
     def forward(self, x):
-        out = self.cna1(x)
-        out = self.cna2(out)
-        out = self.unet_block(out)
-        out = self.cna3(out)
-        out = self.conv_last(out)
+        residual1 = self.down1(x)
+        x = self.downsample(residual1)
 
-        return out
+        residual2 = self.down2(x)
+        x = self.downsample(residual2)
+
+        residual3 = self.down3(x)
+        x = self.downsample(residual3)
+
+        residual4 = self.down4(x)
+        x = self.downsample(residual4)
+
+        x = self.bottleneck(x)
+
+        x = nn.functional.interpolate(x, scale_factor=2)
+        x = torch.cat((x, residual4), dim=1)
+        x = self.up4(x)
+
+        x = nn.functional.interpolate(x, scale_factor=2)
+        x = torch.cat((x, residual3), dim=1)
+        x = self.up3(x)
+
+        x = nn.functional.interpolate(x, scale_factor=2)
+        x = torch.cat((x, residual2), dim=1)
+        x = self.up2(x)
+
+        x = nn.functional.interpolate(x, scale_factor=2)
+        x = torch.cat((x, residual1), dim=1)
+        x = self.up1(x)
+
+        return self.out(x)
 
 
-def augmentation(mean, std):
+def augmentation():
     transform_train = A.Compose([
-        A.Normalize(mean, std, max_pixel_value=1),
         A.HorizontalFlip(p=0.5),
         A.VerticalFlip(p=0.5),
         A.RandomRotate90(p=0.5),
         A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=15, p=0.5),
-        A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
         A.Resize(height=256, width=256),
+        ToTensorV2(),
     ])
 
     transform_val = A.Compose([
-        A.Normalize(mean, std, max_pixel_value=1),
         A.Resize(height=256, width=256),
+        ToTensorV2(),
     ])
     return transform_train, transform_val
 
