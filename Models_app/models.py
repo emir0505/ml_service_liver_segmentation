@@ -223,7 +223,5 @@ def augmentation():
 
 class UploadedImage(models.Model):
     image = models.ImageField(upload_to='images/')
-    segmentation_result = models.ImageField(upload_to='results/', blank=True, null=True)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
 
 

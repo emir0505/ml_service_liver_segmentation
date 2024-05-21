@@ -1,21 +1,27 @@
 from PIL import Image
 import numpy as np
 import torch
-from PIL.Image import Image
 from django.shortcuts import redirect, render
+from Models_app.forms import ImageUploadForm
 from Models_app.models import augmentation, UNET
 
 
 def main_page(request):
-    return render(request, 'mainpage.html')
-
-
-def download_image(request):
-    return render(request, '')
+    if request.method == 'POST':
+        form = ImageUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            image = form.cleaned_data['image']
+            with open('staticfiles/input/uploaded_image.png', 'wb') as f:
+                for chunk in image.chunks():
+                    f.write(chunk)
+            return redirect('watching_photos')
+    else:
+        form = ImageUploadForm()
+    return render(request, 'mainpage.html', {'form': form})
 
 
 def watching_photos(request):
-    image_path = '' # куда загрузили
+    image_path = 'staticfiles/input/uploaded_image.png'
     image = Image.open(image_path).convert("RGB")
     return render(request, 'watching.html', context={'images': image})
 
@@ -27,7 +33,7 @@ def predict(request):
     model.eval()
     model.to(device)
     _, transform_val = augmentation()
-    image_path = 'your_image.jpg'
+    image_path = '/input/uploaded_image.png'
     image = Image.open(image_path).convert("RGB")
     image_np = np.array(image)
     transformed = transform_val(image=image_np)
