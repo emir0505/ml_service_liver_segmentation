@@ -31,7 +31,7 @@ def watching_photos(request):
     return render(request, 'watching.html', context={'images': image})
 
 
-def load_model(deviпввпрce):
+def load_model(device):
     model = UNET()
     model_path = os.path.join(BASE_DIR, 'models', 'unet_tumor_08.pth')
     model.load_state_dict(torch.load(model_path, map_location=device))
