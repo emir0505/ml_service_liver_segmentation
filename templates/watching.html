@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Просмотр</title>
+</head>
+<body>
+    <section class="photo">
+    <h2>Ваше изображение:</h2>
+    {% for image in images %}
+        <div class="graph">
+             <img src="{{image.url}}" width="240" height="240" alt="">
+        </div>
+    {% endfor %}
+    </section>
+    <section class="choice">
+        <h2>Выберите модель</h2>
+    </section>
+    <form action="{% url 'predict' %}" method="post">
+        {% csrf_token %}
+        <button type="submit">Пропуск изображения через модель</button>
+    </form>
+</body>
+</html>
