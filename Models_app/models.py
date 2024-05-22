@@ -124,6 +124,27 @@ class LiverDataset:
         return np.array(features), np.array(targets)
 
 
+def augmentation():
+    transform_train = A.Compose([
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.RandomRotate90(p=0.5),
+        A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=15, p=0.5),
+        A.Resize(height=256, width=256),
+        ToTensorV2(),
+    ])
+
+    transform_val = A.Compose([
+        A.Resize(height=256, width=256),
+        ToTensorV2(),
+    ])
+    return transform_train, transform_val
+
+
+class UploadedImage(models.Model):
+    image = models.ImageField(upload_to='images/')
+
+
 def conv_plus_conv(in_channels: int, out_channels: int):
     return nn.Sequential(
         nn.Conv2d(
@@ -202,26 +223,3 @@ class UNET(nn.Module):
         x = self.up1(x)
 
         return self.out(x)
-
-
-def augmentation():
-    transform_train = A.Compose([
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.RandomRotate90(p=0.5),
-        A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=15, p=0.5),
-        A.Resize(height=256, width=256),
-        ToTensorV2(),
-    ])
-
-    transform_val = A.Compose([
-        A.Resize(height=256, width=256),
-        ToTensorV2(),
-    ])
-    return transform_train, transform_val
-
-
-class UploadedImage(models.Model):
-    image = models.ImageField(upload_to='images/')
-
-

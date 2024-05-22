@@ -2,8 +2,13 @@ from PIL import Image
 import numpy as np
 import torch
 from django.shortcuts import redirect, render
+import torch.nn as nn
 from Models_app.forms import ImageUploadForm
 from Models_app.models import augmentation, UNET
+import os
+
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main_page(request):
@@ -26,14 +31,20 @@ def watching_photos(request):
     return render(request, 'watching.html', context={'images': image})
 
 
+def load_model(device):
+    model = UNET()
+    model_path = os.path.join(BASE_DIR, 'models', 'unet_tumor_08.pth')
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    return model
+
+
 def predict(request):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = UNET()
-    model.load_state_dict(torch.load('unet_tumor_08', map_location=device))
+    model = load_model(device)
     model.eval()
     model.to(device)
     _, transform_val = augmentation()
-    image_path = '/input/uploaded_image.png'
+    image_path = 'staticfiles/input/uploaded_image.png'
     image = Image.open(image_path).convert("RGB")
     image_np = np.array(image)
     transformed = transform_val(image=image_np)
