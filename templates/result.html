@@ -7,10 +7,18 @@
 </head>
 <body>
     <div class="graph">
-            <img src="{% static output_image_path %}" width="640" height="480" alt="">
+        <h2>Оригинал</h2>
+        <img src="{% static 'outputs/original_60.png' %}" width="640" height="480" alt="">
+    </div>
+    <div class="graph">
+        <h2>Предсказание</h2>
+        <img src="{% static 'outputs/prediction_60.png' %}" width="640" height="480" alt="">
+    </div>
+    <div class="graph">
+        <img src="{% static 'outputs/prediction_75.png' %}" width="640" height="480" alt="">
     </div>
     <div class="Jaccard">
-        <p>Индекс Жакара после обучения = 0.8001138011614481</p>
+        <p>Индекс Жаккара после обучения = 0.8001138011614481</p>
     </div>
 </body>
 </html>
